@@ -66,12 +66,67 @@ SDL_Surface* display_image(SDL_Surface *img) {
   return screen;
 }
 
+int Clamp(float component)
+        {
+            return component < 0 ? 0 : (component > 255 ? 255 : (int)(component));
+        }
+
+int IsValid(int x, int y, SDL_Surface* img)
+        {
+	    if(x >= 0 && x < img ->w && y >= 0 && y < img->h )
+		return 1;
+	    else
+		return 0;
+        }
+
+SDL_Surface* Convolute(SDL_Surface* img)
+        {
+	    float mask[3][3] = { {  0, -1, 0  },
+                               { -1,  5, -1 },
+                               {  0, -1, 0  } };
+            int offset = 1;
+            SDL_Surface* res = img;
+
+            for (int y = 0; y < img->h; ++y)
+            {
+                for (int x = 0; x < img->w; ++x)
+                {
+                    float acc[3] = { 0, 0, 0 };
+		    Uint32 c;
+                    for (int dy = -offset; dy <= offset; ++dy)
+                    {
+                        for (int dx = -offset; dx <= offset; ++dx)
+                        {
+                            if (IsValid(x + dx, y + dy, img))
+                            {
+                                c = getpixel(img, x + dx, y + dy);
+                                float coef = mask[dy + offset][dx + offset];
+				Uint8 r, g, b;
+				SDL_GetRGB(c, img ->format, &r, &g, &b);
+                                acc[0] += r * coef;
+                                acc[1] += g * coef;
+                                acc[2] += b * coef;
+                            }
+                        }
+                    }
+		    Uint32 pxl = getpixel(img, x, y);
+		    pxl = SDL_MapRGB(img->format, acc[0], acc[1], acc[2]);
+		    putpixel(res, x , y, c);
+                    //res.SetPixel(x, y, Color.FromArgb(Clamp(acc[0]), Clamp(acc[1]), Clamp(acc[2])));
+                }
+            }
+
+            return res;
+        }
+
 int main(int argc, char *argv[])
 {
    if (argc<2)
 	errx(1 , "No image.");
    init_sdl();
    SDL_Surface* img = load_image(argv[1]);
+   display_image(img);
+   img = Convolute(img);
    display_image(img);
    for (int x = 0; x < img->w; x++)
    {
@@ -93,12 +148,12 @@ int main(int argc, char *argv[])
                 Uint32 pxl = getpixel(img, x, y);
                 Uint8 r, g, b;
                 SDL_GetRGB(pxl , img->format, &r, &g, &b);
-                float gray = 0.3 * r + 0.59 * g + 0.11 * b;
-		if(gray <= 127)
-			gray = 0;
+                float bin = 0.3 * r + 0.59 * g + 0.11 * b;
+		if(bin <= 127)
+			bin = 0;
 		else
-			gray = 255;
-                pxl = SDL_MapRGB(img->format, gray, gray, gray);
+			bin = 255;
+                pxl = SDL_MapRGB(img->format, bin, bin, bin);
                 putpixel(img, x, y, pxl);
         }
    }
