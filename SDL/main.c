@@ -119,6 +119,41 @@ SDL_Surface* Convolute(SDL_Surface* img)
             return res;
         }
 
+SDL_Surface* RLSA(SDL_Surface* img, int mode) //mode == 0 si horizontal, 1 si vertical
+{
+	int c;
+	Uint8 r, g, b;
+	Uint8 tr, tg, tb;
+	int neigh;
+	int prevNeigh = 0;
+	if (!mode)
+	{
+		for (size_t i = 0; i < img->h; ++i){
+			for (size_t j = 0;j < img->w; ++j){
+				SDL_GetRGB(getpixel(img, i, j), img->format, &r, &g, &b);
+				if (r == 255)
+				{
+					neigh = 1 + prevNeigh;
+					c = 0;
+					y = j;
+					SDL_GetRGB(getpixel(img, i, y + 1), img->format, &tr, &tg, &tb);
+					while (c < 4 and tr == 255){
+						neigh++;
+						c++;
+						y++;
+						SDL_GetRGB(getpixel(img, i, y + 1), img->format, &tr, &tg, &tb);
+					}
+					if (neigh <= 4)
+						//j'en suis ici
+					prevNeigh++;
+				}
+				else
+					prevNeigh = 0;
+			}
+		}
+	}
+}
+
 int main(int argc, char *argv[])
 {
    if (argc<2)
@@ -158,6 +193,7 @@ int main(int argc, char *argv[])
         }
    }
    display_image(img);
+   //ici
    SDL_FreeSurface(img);
    return 0;
 }
