@@ -8,6 +8,12 @@ struct Network{
     float weight[2];
 };
 
+void editNumLayers(struct Network *n){
+    //Useless function just to see how it works
+    //This function edit tje property numLayers of a Network
+    n->numLayers = 5;
+}
+
 int main(){
     //Init Network
     struct Network network;
