@@ -119,39 +119,102 @@ SDL_Surface* Convolute(SDL_Surface* img)
             return res;
         }
 
-SDL_Surface* RLSA(SDL_Surface* img, int mode) //mode == 0 si horizontal, 1 si vertical
+SDL_Surface* RLSA(SDL_Surface* img, int mode) //mode == 0 if horizontal, 1 if vertical
 {
 	int c;
 	Uint8 r, g, b;
 	Uint8 tr, tg, tb;
 	int neigh;
 	int prevNeigh = 0;
-	if (!mode)
+	Uint32 pxl;
+	int y;
+	if (!mode) //if horizontal rlsa
 	{
-		for (size_t i = 0; i < img->h; ++i){
-			for (size_t j = 0;j < img->w; ++j){
-				SDL_GetRGB(getpixel(img, i, j), img->format, &r, &g, &b);
-				if (r == 255)
+		for (int i = 0; i < img->h; ++i){
+			for (int j = 0;j < img->w; ++j){  //horizontal path
+				pxl = getpixel(img, i, j);
+				SDL_GetRGB(pxl, img->format, &r, &g, &b);
+				if (r == 255)	//if current pixel is white
 				{
-					neigh = 1 + prevNeigh;
-					c = 0;
-					y = j;
-					SDL_GetRGB(getpixel(img, i, y + 1), img->format, &tr, &tg, &tb);
-					while (c < 4 and tr == 255){
-						neigh++;
-						c++;
-						y++;
-						SDL_GetRGB(getpixel(img, i, y + 1), img->format, &tr, &tg, &tb);
+					neigh = 1 + prevNeigh; //there are at least (1 + number of previous consecutive white pixels) neighbours
+					if (j < (img->w) - 1) //if not right before the end of line
+					{
+						c = 0;
+						y = j + 1;
+						SDL_GetRGB(getpixel(img, i, y), img->format, &tr, &tg, &tb); //we look up to the 4 next pixels
+						while ((c < 4) && (tr == 255) && (j < img->w)){                 //to see if they are white
+							neigh++;					   //if yes and no black pixel in between, we increment
+							c++;						  //the number of neighbouring white pixels
+							y++;
+							SDL_GetRGB(getpixel(img, i, y), img->format, &tr, &tg, &tb);
+						}
 					}
-					if (neigh <= 4)
-						//j'en suis ici
-					prevNeigh++;
+					if (neigh <= 4) //if it's part of a short space
+						pxl = SDL_MapRGB(img->format, 0, 0, 0); //we set current pixel to black
+					prevNeigh++; //in any case, it means the next pixel will have 1 more white neighbour
 				}
 				else
-					prevNeigh = 0;
+					prevNeigh = 0; //if black pixel, we break the chain of white pixels
 			}
+			prevNeigh = 0; //end of line, the next pixel won't be part of the current chain of white pixels
 		}
 	}
+	else
+	{
+		for (int i = 0; i < img->w; ++i){ //vertical path
+                        for (int j = 0;j < img->h; ++j){
+                                pxl = getpixel(img, j, i);
+                                SDL_GetRGB(pxl, img->format, &r, &g, &b);
+                                if (r == 255)
+                                {
+                                        neigh = 1 + prevNeigh;
+					if (j < (img->h) - 1) //if not right before end of column
+					{
+                                        	c = 0;
+                                        	y = j + 1;
+                                        	SDL_GetRGB(getpixel(img, y, i), img->format, &tr, &tg, &tb);
+                                        	while ((c < 4) && (tr == 255) && (j < img->h)){
+                                                	neigh++;
+                                                	c++;
+                                                	y++;
+                                                	SDL_GetRGB(getpixel(img, y, i), img->format, &tr, &tg, &tb);
+                                        	}
+					}
+                                        if (neigh <= 4)
+                                                pxl = SDL_MapRGB(img->format, 0, 0, 0);
+                                        prevNeigh++;
+                                }
+                                else
+                                        prevNeigh = 0;
+                        }
+			prevNeigh = 0; //end of column
+                }
+	}
+	return img;
+}
+
+SDL_Surface* FusAnd(SDL_Surface* hor, SDL_Surface* ver)
+{
+	Uint32 horpxl;
+	Uint32 verpxl;
+	Uint8 hr, hg, hb;
+	Uint8 vr, vg, vb;
+	SDL_Surface* res = SDL_CreateRGBSurface(0, hor->w, hor->h, 32, 0, 0, 0, 0);
+	Uint32 respxl;
+	for (int i = 0;i < hor->h;i++){
+		for (int j = 0;j < hor->w;j++){ 
+			horpxl = getpixel(hor, i, j);
+			verpxl = getpixel(ver, i, j);
+			SDL_GetRGB(horpxl, hor->format, &hr, &hg, &hb);
+			SDL_GetRGB(verpxl, ver->format, &vr, &vg, &vb);
+			respxl = getpixel(res, i, j);
+			if (hr != vr) //if current pixel doesn't have the same color in both images
+				respxl = SDL_MapRGB(res->format, 255, 255, 255); //we set its color to white in the result image
+			else if (hr == 255 && vr == 255)
+				respxl = SDL_MapRGB(res->format, 255, 255, 255); //else, we set it to the color they have in common
+		}
+	}
+	return res;
 }
 
 int main(int argc, char *argv[])
@@ -193,7 +256,17 @@ int main(int argc, char *argv[])
         }
    }
    display_image(img);
-   //ici
+   //SDL_Surface* hor = RLSA(img, 0);
+   //display_image(hor);
+   //SDL_Surface* ver = RLSA(img, 1);
+   //display_image(ver);
+   //SDL_Surface* res = FusAnd(hor, ver);
+   //display_image(res);
+   //res = RLSA(res, 0);
+   //display_image(res);
+   //SDL_FreeSurface(res);
    SDL_FreeSurface(img);
+   //SDL_FreeSurface(hor);
+   //SDL_FreeSurface(ver);
    return 0;
 }
