@@ -119,11 +119,9 @@ SDL_Surface* Convolute(SDL_Surface* img)
             return res;
         }
 
-SDL_Surface* RLSA(SDL_Surface* img, int mode) //mode == 0 if horizontal, 1 if vertical
+SDL_Surface* RLSA(SDL_Surface* img, int mode, int tab[img->h][img->w][2]) //mode == 0 if horizontal, 1 if vertical
 {
 	int c;
-	Uint8 r, g, b;
-	Uint8 tr, tg, tb;
 	int neigh;
 	int prevNeigh = 0;
 	Uint32 pxl;
@@ -132,24 +130,21 @@ SDL_Surface* RLSA(SDL_Surface* img, int mode) //mode == 0 if horizontal, 1 if ve
 	{
 		for (int i = 0; i < img->h; ++i){
 			for (int j = 0;j < img->w; ++j){  //horizontal path
-				pxl = getpixel(img, i, j);
-				SDL_GetRGB(pxl, img->format, &r, &g, &b);
-				if (r == 255)	//if current pixel is white
+				if (tab[i][j][0] != 0)	//if current pixel is white
 				{
 					neigh = 1 + prevNeigh; //there are at least (1 + number of previous consecutive white pixels) neighbours
 					if (j < (img->w) - 1) //if not right before the end of line
 					{
 						c = 0;
-						y = j + 1;
-						SDL_GetRGB(getpixel(img, i, y), img->format, &tr, &tg, &tb); //we look up to the 4 next pixels
-						while ((c < 4) && (tr == 255) && (j < img->w)){                 //to see if they are white
-							neigh++;					   //if yes and no black pixel in between, we increment
+						y = j + 1;								//we look up to the 4 next pixels
+						while ((c < 4) && (tab[i][y][0] != 0) && (j < img->w)){                 //to see if they are white
+							neigh++;					  //if yes and no black pixel in between, we increment
 							c++;						  //the number of neighbouring white pixels
 							y++;
-							SDL_GetRGB(getpixel(img, i, y), img->format, &tr, &tg, &tb);
 						}
 					}
 					if (neigh <= 4) //if it's part of a short space
+						pxl = getpixel(img, i, j);
 						pxl = SDL_MapRGB(img->format, 0, 0, 0); //we set current pixel to black
 					prevNeigh++; //in any case, it means the next pixel will have 1 more white neighbour
 				}
@@ -163,24 +158,21 @@ SDL_Surface* RLSA(SDL_Surface* img, int mode) //mode == 0 if horizontal, 1 if ve
 	{
 		for (int i = 0; i < img->w; ++i){ //vertical path
                         for (int j = 0;j < img->h; ++j){
-                                pxl = getpixel(img, j, i);
-                                SDL_GetRGB(pxl, img->format, &r, &g, &b);
-                                if (r == 255)
+                                if (tab[j][i][0] != 0)
                                 {
                                         neigh = 1 + prevNeigh;
 					if (j < (img->h) - 1) //if not right before end of column
 					{
                                         	c = 0;
                                         	y = j + 1;
-                                        	SDL_GetRGB(getpixel(img, y, i), img->format, &tr, &tg, &tb);
-                                        	while ((c < 4) && (tr == 255) && (j < img->h)){
+                                        	while ((c < 4) && (tab[y][i][0] != 0) && (j < img->h)){
                                                 	neigh++;
                                                 	c++;
                                                 	y++;
-                                                	SDL_GetRGB(getpixel(img, y, i), img->format, &tr, &tg, &tb);
                                         	}
 					}
                                         if (neigh <= 4)
+						pxl = getpixel(img, j, i);
                                                 pxl = SDL_MapRGB(img->format, 0, 0, 0);
                                         prevNeigh++;
                                 }
@@ -193,25 +185,17 @@ SDL_Surface* RLSA(SDL_Surface* img, int mode) //mode == 0 if horizontal, 1 if ve
 	return img;
 }
 
-SDL_Surface* FusAnd(SDL_Surface* hor, SDL_Surface* ver)
+SDL_Surface* FusAnd(SDL_Surface* img,int tabhor[img->h][img->w][2], int tabver[img->h][img->w][2])
 {
-	Uint32 horpxl;
-	Uint32 verpxl;
-	Uint8 hr, hg, hb;
-	Uint8 vr, vg, vb;
-	SDL_Surface* res = SDL_CreateRGBSurface(0, hor->w, hor->h, 32, 0, 0, 0, 0);
+	SDL_Surface* res = SDL_CreateRGBSurface(0, img->w, img->h, 32, 0, 0, 0, 0);
 	Uint32 respxl;
-	for (int i = 0;i < hor->h;i++){
-		for (int j = 0;j < hor->w;j++){ 
-			horpxl = getpixel(hor, i, j);
-			verpxl = getpixel(ver, i, j);
-			SDL_GetRGB(horpxl, hor->format, &hr, &hg, &hb);
-			SDL_GetRGB(verpxl, ver->format, &vr, &vg, &vb);
+	for (int i = 0;i < img->h;i++){
+		for (int j = 0;j < img->w;j++){
 			respxl = getpixel(res, i, j);
-			if (hr != vr) //if current pixel doesn't have the same color in both images
+			if (tabhor[i][j][0] != tabver[i][j][0]) //if current pixel doesn't have the same color in both images
 				respxl = SDL_MapRGB(res->format, 255, 255, 255); //we set its color to white in the result image
-			else if (hr == 255 && vr == 255)
-				respxl = SDL_MapRGB(res->format, 255, 255, 255); //else, we set it to the color they have in common
+			else
+				respxl = SDL_MapRGB(res->format, tabhor[i][j][0], tabhor[i][j][0], tabhor[i][j][0]); //else, we set it to the color they have in common (it could have been tabver[i][j][0])
 		}
 	}
 	return res;
@@ -256,17 +240,58 @@ int main(int argc, char *argv[])
         }
    }
    display_image(img);
-   //SDL_Surface* hor = RLSA(img, 0);
-   //display_image(hor);
-   //SDL_Surface* ver = RLSA(img, 1);
-   //display_image(ver);
-   //SDL_Surface* res = FusAnd(hor, ver);
-   //display_image(res);
-   //res = RLSA(res, 0);
-   //display_image(res);
-   //SDL_FreeSurface(res);
+   printf("1\n");
+   Uint8 r, g, b;
+   int tab[img->h][img->w][2];
+   for (int i = 0;i < img->h;i++){
+        for (int j = 0;j < img->w;j++){
+                tab[i][j][1] = 0;
+                SDL_GetRGB(getpixel(img, i, j), img->format, &r, &g, &b);
+                tab[i][j][0] = r;
+        }
+   }
+   SDL_Surface* hor = RLSA(img, 0, tab);
+   display_image(hor);
+   printf("2\n");
+   SDL_Surface* ver = RLSA(img, 1, tab);
+   display_image(ver);
+   printf("3\n");
+   Uint8 hr, hg, hb;
+   Uint8 vr, vg, vb;
+   int tabhor[hor->h][hor->w][2];
+   int tabver[ver->h][ver->w][2];
+   for (int i = 0;i < hor->h;i++){
+        for (int j = 0;j < hor->w;j++){
+                tabhor[i][j][1] = 0;
+		tabver[i][j][1] = 0;
+                SDL_GetRGB(getpixel(hor, i, j), hor->format, &hr, &hg, &hb);
+		SDL_GetRGB(getpixel(ver, i, j), ver->format, &vr, &vg, &vb);
+                tabhor[i][j][0] = hr;
+		tabver[i][j][0] = vr;
+        }
+   }
+   SDL_Surface* res = FusAnd(img, tabhor, tabver);
+   display_image(res);
+   printf("4\n");
+   Uint8 rr, rg, rb;
+   int tabres[res->h][res->w][2];
+   for (int i = 0;i < res->h;i++){
+        for (int j = 0;j < res->w;j++){
+                tabres[i][j][1] = 0;
+                SDL_GetRGB(getpixel(res, i, j), res->format, &rr, &rg, &rb);
+                tabres[i][j][0] = rr;
+        }
+   }
+   res = RLSA(res, 0, tabres);
+   printf("5\n");
+   display_image(res);
+   printf("6\n");
+   SDL_FreeSurface(res);
+   printf("7\n");
+   SDL_FreeSurface(ver);
+   printf("8\n");
+   SDL_FreeSurface(hor);
+   printf("9\n");
    SDL_FreeSurface(img);
-   //SDL_FreeSurface(hor);
-   //SDL_FreeSurface(ver);
    return 0;
 }
