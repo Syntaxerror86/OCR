@@ -165,7 +165,7 @@ SDL_Surface* RLSA(SDL_Surface* img, int mode, int tab[img->h][img->w][2]) //mode
 					{
                                         	c = 0;
                                         	y = j + 1;
-                                        	while ((c < 4) && (tab[y][i][0] != 0) && (j < img->h)){
+						while ((c < 4) && (tab[y][i][0] != 0) && (j < img->h)){
                                                 	neigh++;
                                                 	c++;
                                                 	y++;
