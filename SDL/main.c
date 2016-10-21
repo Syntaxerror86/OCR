@@ -119,7 +119,7 @@ SDL_Surface* Convolute(SDL_Surface* img)
             return res;
         }
 
-SDL_Surface* RLSA(SDL_Surface* img, int mode, int tab[img->h][img->w][2]) //mode == 0 if horizontal, 1 if vertical
+/*SDL_Surface* RLSA(SDL_Surface* img, int mode, int tab[img->h][img->w][2]) //mode == 0 if horizontal, 1 if vertical
 {
 	int c;
 	int neigh;
@@ -143,9 +143,11 @@ SDL_Surface* RLSA(SDL_Surface* img, int mode, int tab[img->h][img->w][2]) //mode
 							y++;
 						}
 					}
-					if (neigh <= 4) //if it's part of a short space
+					if (neigh <= 4){ //if it's part of a short space
 						pxl = getpixel(img, i, j);
 						pxl = SDL_MapRGB(img->format, 0, 0, 0); //we set current pixel to black
+						putpixel(img, i, j, pxl);
+					}
 					prevNeigh++; //in any case, it means the next pixel will have 1 more white neighbour
 				}
 				else
@@ -171,9 +173,11 @@ SDL_Surface* RLSA(SDL_Surface* img, int mode, int tab[img->h][img->w][2]) //mode
                                                 	y++;
                                         	}
 					}
-                                        if (neigh <= 4)
+                                        if (neigh <= 4){
 						pxl = getpixel(img, j, i);
                                                 pxl = SDL_MapRGB(img->format, 0, 0, 0);
+						putpixel(img, j, i, pxl);
+					}
                                         prevNeigh++;
                                 }
                                 else
@@ -192,13 +196,63 @@ SDL_Surface* FusAnd(SDL_Surface* img,int tabhor[img->h][img->w][2], int tabver[i
 	for (int i = 0;i < img->h;i++){
 		for (int j = 0;j < img->w;j++){
 			respxl = getpixel(res, i, j);
-			if (tabhor[i][j][0] != tabver[i][j][0]) //if current pixel doesn't have the same color in both images
+			if (tabhor[i][j][0] != tabver[i][j][0]){ //if current pixel doesn't have the same color in both images
 				respxl = SDL_MapRGB(res->format, 255, 255, 255); //we set its color to white in the result image
-			else
+				putpixel(res, i, j, respxl);
+			}
+			else{
 				respxl = SDL_MapRGB(res->format, tabhor[i][j][0], tabhor[i][j][0], tabhor[i][j][0]); //else, we set it to the color they have in common (it could have been tabver[i][j][0])
+				putpixel(res, i, j, respxl);
+			}
 		}
 	}
 	return res;
+}*/
+
+SDL_Surface* blockMaking(SDL_Surface* img, int x)
+{
+	Uint8 r, g, b;
+	int bx;
+	int by = img->w - 1;
+	int ex;
+	int ey = 0;
+	int onblack = 0;
+	int outblack = 1;
+	Uint32 pxl;
+	for (int i = x;i < img->h;i++){
+		for (int j = 0;j < img->w;j++){
+			SDL_GetRGB(getpixel(img, i, j), img->format, &r, &g, &b);
+			if (!onblack && r == 0)
+			{
+				bx = i;
+				if (by > j)
+					by = j;
+				if (ey < j)
+					ey = j;
+			}
+			if (onblack && r == 0)
+			{
+				if (by > j)
+					by = j;
+				if (ey < j)
+					ey = j;
+				outblack = 0;
+			}
+		}
+		if (outblack)
+		{
+			ex = i;
+			pxl = getpixel(img, bx, by);
+                        pxl = SDL_MapRGB(img->format, 255, 0, 0);
+                        putpixel(img, bx, by, pxl);
+                        pxl = getpixel(img, ex, ey);
+                        pxl = SDL_MapRGB(img->format, 255, 0, 0);
+                        putpixel(img, ex, ey, pxl);
+                        img = blockMaking(img, ex);
+		}
+		outblack = 1;
+	}
+	return img;
 }
 
 int main(int argc, char *argv[])
@@ -240,7 +294,7 @@ int main(int argc, char *argv[])
         }
    }
    display_image(img);
-   printf("1\n");
+   /*printf("1\n");
    Uint8 r, g, b;
    int tab[img->h][img->w][2];
    for (int i = 0;i < img->h;i++){
@@ -290,7 +344,9 @@ int main(int argc, char *argv[])
    printf("7\n");
    SDL_FreeSurface(ver);
    printf("8\n");
-   SDL_FreeSurface(hor);
+   SDL_FreeSurface(hor);*/
+   img = blockMaking(img, 0);
+   display_image(img);
    printf("9\n");
    SDL_FreeSurface(img);
    return 0;
